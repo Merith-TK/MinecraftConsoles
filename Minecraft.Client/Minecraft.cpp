@@ -37,6 +37,8 @@
 
 extern wstring g_connectToIp;
 
+#include "..\Minecraft.World\ConsoleSaveFileOriginal.h"
+#include "..\Minecraft.World\McRegionLevelStorage.h"
 #include "..\Minecraft.World\MobEffect.h"
 #include "..\Minecraft.World\Difficulty.h"
 #include "..\Minecraft.World\net.minecraft.world.level.h"
