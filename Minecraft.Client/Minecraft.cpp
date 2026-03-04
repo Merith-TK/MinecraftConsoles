@@ -56,6 +56,7 @@ extern wstring g_connectToIp;
 #include "..\Minecraft.World\FileHeader.h"
 
 extern bool g_bHeadlessMode;
+extern void MCLog(const char *fmt, ...);
 #include "..\Minecraft.World\net.minecraft.world.level.chunk.h"
 #include "..\Minecraft.World\net.minecraft.world.level.dimension.h"
 #include "..\Minecraft.World\net.minecraft.world.item.h"
@@ -263,6 +264,7 @@ void Minecraft::connectTo(const wstring& server, int port)
 
 void Minecraft::init()
 {
+	MCLog("[Minecraft::init] entered");
 #if 0 // 4J - removed
 	if (parent != null)
 	{
@@ -334,6 +336,16 @@ void Minecraft::init()
 	levelSource = new McRegionLevelStorageSource(File(workingDirectory, L"saves"));
 	//        levelSource = new MemoryLevelStorageSource();
 	options = new Options(this, workingDirectory);
+
+	if (g_bHeadlessMode)
+	{
+		// Headless: no rendering, no textures, no fonts, no UI needed
+		MCLog("[Minecraft::init] headless mode - skipping render/texture/UI init");
+		gui = new Gui(this);
+		progressRenderer = new ProgressRenderer(this);
+		return;
+	}
+
 	skins = new TexturePackRepository(workingDirectory, this);
 	skins->addDebugPacks();
 	textures = new Textures(skins, options);
@@ -4592,6 +4604,7 @@ void Minecraft::start(const wstring& name, const wstring& sid)
 
 void Minecraft::startAndConnectTo(const wstring& name, const wstring& sid, const wstring& url)
 {
+	MCLog("[startAndConnectTo] entered");
 	bool fullScreen = false;
 	wstring userName = name;
 
@@ -4614,7 +4627,9 @@ void Minecraft::startAndConnectTo(const wstring& name, const wstring& sid, const
 	Minecraft *minecraft;
 	// 4J - was new Minecraft(frame, canvas, NULL, 854, 480, fullScreen);
 
+	MCLog("[startAndConnectTo] new Minecraft");
 	minecraft = new Minecraft(NULL, NULL, NULL, 1280, 720, fullScreen);
+	MCLog("[startAndConnectTo] Minecraft ctor done");
 
 	/* - 4J - removed
 	{
@@ -4671,8 +4686,9 @@ void Minecraft::startAndConnectTo(const wstring& name, const wstring& sid, const
 	}
 	});
 	*/
-	// 4J - TODO - consider whether we need to actually create a thread here
+	MCLog("[startAndConnectTo] minecraft->run()");
 	minecraft->run();
+	MCLog("[startAndConnectTo] run() returned");
 }
 
 ClientConnection *Minecraft::getConnection(int iPad)
@@ -4699,15 +4715,24 @@ void Minecraft::main()
 
 	useLomp = true;
 
+	MCLog("[Minecraft::main] MinecraftWorld_RunStaticCtors");
 	MinecraftWorld_RunStaticCtors();
-	EntityRenderDispatcher::staticCtor();
-	TileEntityRenderDispatcher::staticCtor();
+	MCLog("[Minecraft::main] EntityRenderDispatcher::staticCtor");
+	if (!g_bHeadlessMode) EntityRenderDispatcher::staticCtor();
+	MCLog("[Minecraft::main] TileEntityRenderDispatcher::staticCtor");
+	if (!g_bHeadlessMode) TileEntityRenderDispatcher::staticCtor();
+	MCLog("[Minecraft::main] User::staticCtor");
 	User::staticCtor();
+	MCLog("[Minecraft::main] Tutorial::staticCtor");
 	Tutorial::staticCtor();
+	MCLog("[Minecraft::main] ColourTable::staticCtor");
 	ColourTable::staticCtor();
+	MCLog("[Minecraft::main] app.loadDefaultGameRules");
 	app.loadDefaultGameRules();
+	MCLog("[Minecraft::main] loadDefaultGameRules done");
 
 #ifdef _LARGE_WORLDS
+	MCLog("[Minecraft::main] LevelRenderer::staticCtor");
 	LevelRenderer::staticCtor();
 #endif
 
@@ -4746,12 +4771,15 @@ void Minecraft::main()
 	}
 
 	// Common for all platforms
+	MCLog("[Minecraft::main] IUIScene_CreativeMenu::staticCtor");
 	IUIScene_CreativeMenu::staticCtor();
 
 	// On PS4, we call Minecraft::Start from another thread, as this has been timed taking ~2.5 seconds and we need to do some basic
 	// rendering stuff so that we don't break the TRCs on SubmitDone calls
 #ifndef __ORBIS__
+	MCLog("[Minecraft::main] Minecraft::start");
 	Minecraft::start(name, sessionId);
+	MCLog("[Minecraft::main] Minecraft::start returned");
 #endif
 }
 
