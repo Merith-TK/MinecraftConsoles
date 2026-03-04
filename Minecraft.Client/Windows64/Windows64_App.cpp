@@ -72,20 +72,28 @@ void CConsoleMinecraftApp::HeadlessCreateGameStart()
 {
 	MCLog("[HEADLESS] HeadlessCreateGameStart begin");
 
+	MCLog("[HEADLESS] setLevelGenerationOptions");
 	app.setLevelGenerationOptions(NULL);
 
+	MCLog("[HEADLESS] GetInstance");
 	Minecraft *pMinecraft = Minecraft::GetInstance();
+	MCLog("[HEADLESS] ReleaseSaveThumbnail");
 	app.ReleaseSaveThumbnail();
+	MCLog("[HEADLESS] SetLockedProfile");
 	ProfileManager.SetLockedProfile(0);
 	extern wchar_t g_Win64UsernameW[17];
+	MCLog("[HEADLESS] setting user name (user=%p)", pMinecraft->user);
 	pMinecraft->user->name = g_Win64UsernameW;
+	MCLog("[HEADLESS] ApplyGameSettingsChanged");
 	app.ApplyGameSettingsChanged(0);
 
+	MCLog("[HEADLESS] resetFlags");
 	MinecraftServer::resetFlags();
 	app.SetTutorialMode(false);
 	app.SetCorruptSaveDeleted(false);
 	app.ClearTerrainFeaturePosition();
 
+	MCLog("[HEADLESS] setting up world params");
 	wstring wWorldName = L"HeadlessWorld";
 	StorageManager.ResetSaveData();
 	StorageManager.SetSaveTitle(wWorldName.c_str());
@@ -124,6 +132,7 @@ void CConsoleMinecraftApp::HeadlessCreateGameStart()
 	}
 
 	// Normal difficulty (2), Survival, structures on, bonus chest on, no cheats
+	MCLog("[HEADLESS] setting game host options");
 	app.SetGameHostOption(eGameHostOption_Difficulty, 2); // Difficulty::NORMAL
 	app.SetGameHostOption(eGameHostOption_FriendsOfFriends, 0);
 	app.SetGameHostOption(eGameHostOption_Gamertags, 1);
@@ -142,6 +151,7 @@ void CConsoleMinecraftApp::HeadlessCreateGameStart()
 
 	param->settings = app.GetGameHostOption(eGameHostOption_All);
 
+	MCLog("[HEADLESS] FakeLocalPlayerJoined");
 	g_NetworkManager.FakeLocalPlayerJoined();
 
 	LoadingInputParams *loadingParams = new LoadingInputParams();
