@@ -33,6 +33,9 @@
 #include "Input.h"
 #include "FrustumCuller.h"
 #include "Camera.h"
+#include "MinecraftServer.h"
+
+extern wstring g_connectToIp;
 
 #include "..\Minecraft.World\MobEffect.h"
 #include "..\Minecraft.World\Difficulty.h"
@@ -48,6 +51,7 @@
 #include "..\Minecraft.World\System.h"
 #include "..\Minecraft.World\ByteBuffer.h"
 #include "..\Minecraft.World\net.minecraft.world.level.tile.h"
+#include "..\Minecraft.World\FileHeader.h"
 
 extern bool g_bHeadlessMode;
 #include "..\Minecraft.World\net.minecraft.world.level.chunk.h"
@@ -172,6 +176,7 @@ Minecraft::Minecraft(Component *mouseComponent, Canvas *parent, MinecraftApplet 
 	stats[2] = NULL;
 	stats[3] = NULL;
 	connectToPort = 0;
+	connectToIp = g_connectToIp;
 	workDir = File(L"");
 	// 4J removed
 	//wasDown = false;
@@ -418,17 +423,11 @@ void Minecraft::init()
 	if (connectToIp != L"")	// 4J - was NULL comparison
 	{
 		//        setScreen(new ConnectScreen(this, connectToIp, connectToPort));		// 4J TODO - put back in
+		setScreen(NULL);
 	}
 	else
 	{
-		if (g_bHeadlessMode)
-		{
-			selectLevel(NULL, L"world", L"World", NULL);
-		}
-		else
-		{
-			setScreen(new TitleScreen());
-		}
+		setScreen(new TitleScreen());
 	}
 	progressRenderer = new ProgressRenderer(this);
 
@@ -4094,13 +4093,13 @@ bool Minecraft::isClientSide()
 	return level != NULL && level->isClientSide;
 }
 
-bool Minecraft::loadLevel(LevelStorageSource *storageSource, const wstring& name, __int64 levelSeed, LevelType *pLevelType, NetworkGameInitData *initData)
+MultiPlayerLevel *Minecraft::loadLevel(LevelStorageSource *storageSource, const wstring& name, __int64 levelSeed, LevelType *pLevelType, NetworkGameInitData *initData)
 {
 	// Simple load for client
 	shared_ptr<McRegionLevelStorage> storage(new McRegionLevelStorage(new ConsoleSaveFileOriginal(L""), File(L"."), name, true));
-	LevelSettings *levelSettings = new LevelSettings(levelSeed, LevelSettings::GAMETYPE_SURVIVAL, true, false, true, pLevelType, LEVEL_LEGACY_WIDTH, HELL_LEVEL_LEGACY_SCALE);
+	LevelSettings *levelSettings = new LevelSettings(levelSeed, GameType::SURVIVAL, true, false, true, pLevelType, LEVEL_LEGACY_WIDTH, HELL_LEVEL_LEGACY_SCALE);
 	MultiPlayerLevel *level = new MultiPlayerLevel(this, storage, name, 0, levelSettings);
-	return level != NULL;
+	return level;
 }
 
 void Minecraft::selectLevel(ConsoleSaveFile *saveFile, const wstring& levelId, const wstring& levelName, LevelSettings *levelSettings)
@@ -4113,10 +4112,10 @@ void Minecraft::selectLevel(ConsoleSaveFile *saveFile, const wstring& levelId, c
 		setLevel(level);
 		setScreen(NULL);
 		// For headless, start LAN hosting
-		if (g_bHeadlessMode)
-		{
-			app.StartHost();
-		}
+		// if (g_bHeadlessMode)
+		// {
+		//	app.StartHost();
+		// }
 	}
 }
 

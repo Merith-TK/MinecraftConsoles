@@ -7,6 +7,9 @@ int main(int argc, char* argv[])
 {
     std::cout << "Starting headless Minecraft server..." << std::endl;
 
+    // Initialize static constructors
+    MinecraftWorld_RunStaticCtors();
+
     // Hardcoded save name - change this to your save file name
     std::wstring saveName = L"world";
 

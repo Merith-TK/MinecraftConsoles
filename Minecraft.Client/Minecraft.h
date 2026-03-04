@@ -37,6 +37,9 @@ class LevelSettings;
 class ColourTable;
 class MultiPlayerGameMode;
 class PsPlusUpsellWrapper;
+class LevelType;
+struct _NetworkGameInitData;
+typedef struct _NetworkGameInitData NetworkGameInitData;
 
 #include "..\Minecraft.World\File.h"
 #include "..\Minecraft.World\DisconnectPacket.h"
@@ -268,6 +271,7 @@ private:
 	void reloadSound();
 public:
 	bool isClientSide();
+	MultiPlayerLevel *loadLevel(LevelStorageSource *storageSource, const wstring& name, __int64 levelSeed, LevelType *pLevelType, NetworkGameInitData *initData);
 	void selectLevel(ConsoleSaveFile *saveFile, const wstring& levelId, const wstring& levelName, LevelSettings *levelSettings);
 	//void toggleDimension(int targetDimension);
 	bool saveSlot(int slot, const wstring& name);

@@ -49,6 +49,7 @@ HINSTANCE hMyInst;
 LRESULT CALLBACK DlgProc(HWND hWndDlg, UINT Msg, WPARAM wParam, LPARAM lParam);
 char chGlobalText[256];
 bool g_bHeadlessMode = false;
+wstring g_connectToIp = L"";
 uint16_t ui16GlobalText[256];
 
 #define THEME_NAME		"584111F70AAAAAAA"
@@ -810,6 +811,19 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	}
 
 	MultiByteToWideChar(CP_ACP, 0, g_Win64Username, -1, g_Win64UsernameW, 17);
+
+	if (g_bHeadlessMode)
+	{
+		g_connectToIp = L"127.0.0.1";
+		NetworkGameInitData initData;
+		initData.seed = 0;
+		initData.findSeed = false;
+		initData.xzSize = LEVEL_LEGACY_WIDTH;
+		initData.hellScale = HELL_LEVEL_LEGACY_SCALE;
+		initData.savePlatform = SAVE_FILE_PLATFORM_LOCAL;
+		DWORD threadId;
+		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)MinecraftServer::main, &initData, 0, &threadId);
+	}
 
 	// Initialize global strings
 	MyRegisterClass(hInstance);

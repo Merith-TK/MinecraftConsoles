@@ -4,6 +4,7 @@ using namespace std;
 #include "..\Minecraft.World\net.minecraft.world.level.h"
 #include "..\Minecraft.World\net.minecraft.world.entity.h"
 #include "..\Minecraft.World\JavaIntHash.h"
+#include "..\Minecraft.World\McRegionLevelStorage.h"
 
 class ClientConnection;
 class MultiPlayerChunkCache;
@@ -41,6 +42,7 @@ private:
 
 public:
 	MultiPlayerLevel(ClientConnection *connection, LevelSettings *levelSettings, int dimension, int difficulty);
+	MultiPlayerLevel(Minecraft *minecraft, shared_ptr<McRegionLevelStorage> storage, const wstring& name, int dimension, LevelSettings *levelSettings);
 	virtual ~MultiPlayerLevel();
 	virtual void tick() ;
 

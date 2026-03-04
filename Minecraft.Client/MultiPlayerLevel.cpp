@@ -67,6 +67,34 @@ MultiPlayerLevel::MultiPlayerLevel(ClientConnection *connection, LevelSettings *
 	m_bEnableResetChanges = true;
 }
 
+MultiPlayerLevel::MultiPlayerLevel(Minecraft *minecraft, shared_ptr<McRegionLevelStorage> storage, const wstring& name, int dimension, LevelSettings *levelSettings)
+	: Level(storage, name, Dimension::getNew(dimension), levelSettings, false)
+{
+	this->minecraft = minecraft;
+
+	// 4J - this this used to be called in parent ctor via a virtual fn
+	chunkSource = createChunkSource();
+	// 4J - optimisation - keep direct reference of underlying cache here
+	chunkSourceCache = chunkSource->getCache();
+	chunkSourceXZSize = chunkSource->m_XZSize;
+
+	// This also used to be called in parent ctor, but can't be called until chunkSource is created. Call now if required.
+	if (!levelData->isInitialized())
+	{
+		initializeLevel(levelSettings);
+		levelData->setInitialized(true);
+	}
+
+	this->difficulty = 0; // default
+	unshareCheckX = 0;
+	unshareCheckZ = 0;
+	compressCheckX = 0;
+	compressCheckZ = 0;
+
+	// 4J Added, as there are some times when we don't want to add tile updates to the updatesToReset vector
+	m_bEnableResetChanges = true;
+}
+
 MultiPlayerLevel::~MultiPlayerLevel()
 {
 	// Don't let the base class delete this, it comes from the connection for multiplayerlevels, and we'll delete there
