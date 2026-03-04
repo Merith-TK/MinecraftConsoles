@@ -1,4 +1,5 @@
 #include "stdafx.h"
+extern void MCLog(const char *fmt, ...);
 #include "..\..\..\Minecraft.World\compression.h"
 #include "..\..\..\Minecraft.World\StringHelpers.h"
 #include "..\..\..\Minecraft.World\File.h"
@@ -626,6 +627,7 @@ void GameRuleManager::processSchematicsLighting(LevelChunk *levelChunk)
 
 void GameRuleManager::loadDefaultGameRules()
 {
+	MCLog("[loadDefaultGameRules] entered");
 #ifdef _XBOX
 #ifdef _TU_BUILD
 	wstring fileRoot = L"UPDATE:\\res\\GameRules\\Tutorial.pck";
@@ -655,8 +657,10 @@ void GameRuleManager::loadDefaultGameRules()
 #else // _XBOX
 
 #ifdef _WINDOWS64
+	MCLog("[loadDefaultGameRules] constructing Tutorial.pck File");
 	File packedTutorialFile(L"Windows64Media\\Tutorial\\Tutorial.pck");
 	if(!packedTutorialFile.exists()) packedTutorialFile = File(L"Windows64\\Tutorial\\Tutorial.pck");
+	MCLog("[loadDefaultGameRules] Tutorial.pck path: exists=%d", packedTutorialFile.exists());
 #elif defined(__ORBIS__)
 	File packedTutorialFile(L"/app0/orbis/Tutorial/Tutorial.pck");
 #elif defined(__PSVITA__)
@@ -666,12 +670,15 @@ void GameRuleManager::loadDefaultGameRules()
 #else
 	File packedTutorialFile(L"Tutorial\\Tutorial.pck");
 #endif
+	MCLog("[loadDefaultGameRules] calling loadGameRulesPack");
 	if(loadGameRulesPack(&packedTutorialFile))
 	{
+		MCLog("[loadDefaultGameRules] pack loaded, setting world name");
 		m_levelGenerators.getLevelGenerators()->at(0)->setWorldName(app.GetString(IDS_PLAY_TUTORIAL));
 		//m_levelGenerators.getLevelGenerators()->at(0)->setDefaultSaveName(L"Tutorial");
 		m_levelGenerators.getLevelGenerators()->at(0)->setDefaultSaveName(app.GetString(IDS_TUTORIALSAVENAME));
 	}
+	MCLog("[loadDefaultGameRules] done");
 #if 0
 	wstring fpTutorial = L"Tutorial.pck";
 	if(app.getArchiveFileSize(fpTutorial) >= 0)
@@ -693,10 +700,13 @@ void GameRuleManager::loadDefaultGameRules()
 bool GameRuleManager::loadGameRulesPack(File *path)
 {
 	bool success = false;
+	MCLog("[loadGameRulesPack] checking path exists");
 	if(path->exists())
 	{
+		MCLog("[loadGameRulesPack] file found, creating DLCPack");
 		DLCPack *pack = new DLCPack(L"",0xffffffff);
 		DWORD dwFilesProcessed = 0;
+		MCLog("[loadGameRulesPack] calling readDLCDataFile");
 		if( app.m_dlcManager.readDLCDataFile(dwFilesProcessed, path->getPath(),pack))
 		{
 			app.m_dlcManager.addPack(pack);

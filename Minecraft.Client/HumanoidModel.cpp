@@ -1,4 +1,5 @@
 #include "stdafx.h"
+extern bool g_bHeadlessMode;
 #include "HumanoidModel.h"
 #include "..\Minecraft.World\Mth.h"
 #include "..\Minecraft.World\Entity.h"
@@ -102,15 +103,18 @@ void HumanoidModel::_init(float g, float yOffset, int texWidth, int texHeight)
 
 	// 4J added - compile now to avoid random performance hit first time cubes are rendered
 	// 4J Stu - Not just performance, but alpha+depth tests don't work right unless we compile here
-	cloak->compile(1.0f/16.0f);
-	ear->compile(1.0f/16.0f);
-	head->compile(1.0f/16.0f);
-	body->compile(1.0f/16.0f);
-	arm0->compile(1.0f/16.0f);
-	arm1->compile(1.0f/16.0f);
-	leg0->compile(1.0f/16.0f);
-	leg1->compile(1.0f/16.0f);
-	hair->compile(1.0f/16.0f);
+	if (!g_bHeadlessMode)
+	{
+		cloak->compile(1.0f/16.0f);
+		ear->compile(1.0f/16.0f);
+		head->compile(1.0f/16.0f);
+		body->compile(1.0f/16.0f);
+		arm0->compile(1.0f/16.0f);
+		arm1->compile(1.0f/16.0f);
+		leg0->compile(1.0f/16.0f);
+		leg1->compile(1.0f/16.0f);
+		hair->compile(1.0f/16.0f);
+	}
 
 	holdingLeftHand=0;
 	holdingRightHand=0;

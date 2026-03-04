@@ -126,9 +126,11 @@ ResourceLocation Minecraft::ALT_FONT_LOCATION = ResourceLocation(TN_ALT_FONT);
 
 Minecraft::Minecraft(Component *mouseComponent, Canvas *parent, MinecraftApplet *minecraftApplet, int width, int height, bool fullscreen)
 {
+	MCLog("[Minecraft::ctor] start");
 	// 4J - added this block of initialisers
 	gameMode = NULL;
 	hasCrashed = false;
+	MCLog("[Minecraft::ctor] new Timer");
 	timer = new Timer(SharedConstants::TICKS_PER_SECOND);
 	oldLevel = NULL; //4J Stu added
 	level = NULL;
@@ -147,6 +149,7 @@ Minecraft::Minecraft(Component *mouseComponent, Canvas *parent, MinecraftApplet 
 	rightClickDelay = 0;
 
 	// 4J Stu Added
+	MCLog("[Minecraft::ctor] InitializeCriticalSection");
 	InitializeCriticalSection( &ProgressRenderer::s_progress );
 	InitializeCriticalSection(&m_setLevelCS);
 	//m_hPlayerRespawned = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -156,19 +159,17 @@ Minecraft::Minecraft(Component *mouseComponent, Canvas *parent, MinecraftApplet 
 	bgLoader = NULL;
 
 	ticks = 0;
-	// 4J-PB - moved into the local player
-	//missTime = 0;
-	//lastClickTick = 0;
-	//isRaining = false;
-	// 4J-PB - end
 
 	orgWidth = orgHeight = 0;
+	MCLog("[Minecraft::ctor] new AchievementPopup");
 	achievementPopup = new AchievementPopup(this);
 	gui = NULL;
 	noRender = false;
-	humanoidModel = new HumanoidModel(0);
+	MCLog("[Minecraft::ctor] new HumanoidModel");
+	humanoidModel = g_bHeadlessMode ? NULL : new HumanoidModel(0);
 	hitResult = 0;
 	options = NULL;
+	MCLog("[Minecraft::ctor] new SoundEngine");
 	soundEngine = new SoundEngine();
 	mouseHandler = NULL;
 	skins = NULL;
@@ -181,16 +182,13 @@ Minecraft::Minecraft(Component *mouseComponent, Canvas *parent, MinecraftApplet 
 	connectToPort = 0;
 	connectToIp = g_connectToIp;
 	workDir = File(L"");
-	// 4J removed
-	//wasDown = false;
 	lastTimer = -1;
 
-	// 4J removed
-	//lastTickTime = System::currentTimeMillis();
 	recheckPlayerIn = 0;
 	running = true;
 	unoccupiedQuadrant = -1;
 
+	MCLog("[Minecraft::ctor] Stats::init");
 	Stats::init();
 
 	orgHeight = height;
@@ -4738,7 +4736,7 @@ void Minecraft::main()
 
 #ifdef _LARGE_WORLDS
 	MCLog("[Minecraft::main] LevelRenderer::staticCtor");
-	LevelRenderer::staticCtor();
+	if (!g_bHeadlessMode) LevelRenderer::staticCtor();
 #endif
 
 	// 4J Stu - This block generates XML for the game rules schema
