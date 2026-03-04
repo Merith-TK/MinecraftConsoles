@@ -228,10 +228,7 @@ static BOOL WINAPI HeadlessServerCtrlHandler(DWORD ctrlType)
 
 static void SetupHeadlessServerConsole()
 {
-	// The exe is linked as /SUBSYSTEM:CONSOLE, so it normally inherits the
-	// parent's console.  However, if launched with DETACHED_PROCESS or
-	// CREATE_NO_WINDOW the handles may be invalid.  Verify before redirecting
-	// the CRT streams to avoid leaving them in a broken state.
+	// Verify console handles are valid before redirecting CRT streams
 	HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
 	HANDLE hStdIn  = GetStdHandle(STD_INPUT_HANDLE);
 	bool hasConsole =
