@@ -29,6 +29,8 @@
 #include "..\GameRules\ConsoleGameRules.h"
 #include "GameNetworkManager.h"
 
+extern bool g_bHeadlessMode;
+
 #ifdef _XBOX
 #include "Common\XUI\XUI_PauseMenu.h"
 #else
@@ -410,7 +412,7 @@ bool	CGameNetworkManager::StartNetworkGame(Minecraft *minecraft, LPVOID lpParame
 		INT multiplayerInstanceId = TelemetryManager->GenerateMultiplayerInstanceId();
 		TelemetryManager->SetMultiplayerInstanceId(multiplayerInstanceId);
 	}
-	TexturePack *tPack = Minecraft::GetInstance()->skins->getSelected();
+	TexturePack *tPack = (Minecraft::GetInstance()->skins != NULL) ? Minecraft::GetInstance()->skins->getSelected() : NULL;
 	do
 	{
 		app.DebugPrintf("ticking connection A\n");
@@ -419,8 +421,8 @@ bool	CGameNetworkManager::StartNetworkGame(Minecraft *minecraft, LPVOID lpParame
 		// 4J Stu - We were ticking this way too fast which could cause the connection to time out
 		// The connections should tick at 20 per second
 		Sleep(50);
-	} while ( (IsInSession() && !connection->isStarted() && !connection->isClosed() && !g_NetworkManager.IsLeavingGame()) || tPack->isLoadingData() || (Minecraft::GetInstance()->skins->needsUIUpdate() || ui.IsReloadingSkin()) );
-	ui.CleanUpSkinReload();
+	} while ( (IsInSession() && !connection->isStarted() && !connection->isClosed() && !g_NetworkManager.IsLeavingGame()) || (tPack != NULL && tPack->isLoadingData()) || (Minecraft::GetInstance()->skins != NULL && (Minecraft::GetInstance()->skins->needsUIUpdate() || ui.IsReloadingSkin())) );
+	if (!g_bHeadlessMode) ui.CleanUpSkinReload();
 
 	// 4J Stu - Fix for #11279 - CRASH: TCR 001: BAS Game Stability: Signing out of game will cause title to crash
 	// We need to break out of the above loop if m_bLeavingGame is set, and close the connection
@@ -900,12 +902,15 @@ int CGameNetworkManager::RunNetworkGameThreadProc( void* lpParameter )
 	g_NetworkManager.m_bNetworkThreadRunning = false;
 	if( !success)
 	{
-		TexturePack *tPack = Minecraft::GetInstance()->skins->getSelected();
-		while ( tPack->isLoadingData() || (Minecraft::GetInstance()->skins->needsUIUpdate() || ui.IsReloadingSkin()) )
+		if (!g_bHeadlessMode && Minecraft::GetInstance()->skins != NULL)
 		{
-			Sleep(1);
+			TexturePack *tPack = Minecraft::GetInstance()->skins->getSelected();
+			while ( tPack->isLoadingData() || (Minecraft::GetInstance()->skins->needsUIUpdate() || ui.IsReloadingSkin()) )
+			{
+				Sleep(1);
+			}
+			ui.CleanUpSkinReload();
 		}
-		ui.CleanUpSkinReload();
 		if(app.GetDisconnectReason() == DisconnectPacket::eDisconnect_None) 
 		{
 			app.SetDisconnectReason( DisconnectPacket::eDisconnect_ConnectionCreationFailed );

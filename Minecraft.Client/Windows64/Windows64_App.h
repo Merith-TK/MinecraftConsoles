@@ -32,6 +32,9 @@ public:
 	// original code
 	virtual void TemporaryCreateGameStart();
 
+	// Headless server world loading
+	void HeadlessCreateGameStart();
+
 	bool m_bShutdown;
 };
 

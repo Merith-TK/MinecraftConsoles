@@ -853,14 +853,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	if (g_bHeadlessMode)
 	{
 		g_connectToIp = L"127.0.0.1";
-		NetworkGameInitData initData;
-		initData.seed = 0;
-		initData.findSeed = false;
-		initData.xzSize = LEVEL_LEGACY_WIDTH;
-		initData.hellScale = HELL_LEVEL_LEGACY_SCALE;
-		initData.savePlatform = SAVE_FILE_PLATFORM_LOCAL;
-		DWORD threadId;
-		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)MinecraftServer::main, &initData, 0, &threadId);
+		// World loading is done later via HeadlessCreateGameStart() after Minecraft::main()
 	}
 
 	// Initialize global strings
@@ -1188,8 +1181,29 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 
 	if (g_bHeadlessMode)
 	{
-		// Headless server loop - no rendering, no input, just keep alive + tick network
-		MCLog("[INIT] Headless server loop running");
+		// Start the world
+		MCLog("[HEADLESS] Starting world...");
+		app.HeadlessCreateGameStart();
+
+		// Wait for the server to be ready
+		MCLog("[HEADLESS] Waiting for server to be ready...");
+		int waitCount = 0;
+		while (MinecraftServer::getInstance() == NULL && !app.m_bShutdown)
+		{
+			Sleep(100);
+			waitCount++;
+			if (waitCount % 50 == 0) MCLog("[HEADLESS] Still waiting for server... (%d seconds)", waitCount / 10);
+		}
+		if (MinecraftServer::getInstance() != NULL)
+			MCLog("[HEADLESS] Server is ready!");
+		else
+			MCLog("[HEADLESS] Server failed to start");
+
+		// Headless server loop
+		MCLog("[HEADLESS] Server loop running");
+		DWORD dwLastAutosave = GetTickCount();
+		const DWORD AUTOSAVE_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+
 		while (!app.m_bShutdown)
 		{
 			while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
@@ -1204,8 +1218,29 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 			StorageManager.Tick();
 			g_NetworkManager.DoWork();
 
+			// Autosave every 10 minutes
+			DWORD dwNow = GetTickCount();
+			if (dwNow - dwLastAutosave >= AUTOSAVE_INTERVAL_MS)
+			{
+				if (MinecraftServer::getInstance() != NULL)
+				{
+					MCLog("[HEADLESS] Triggering autosave");
+					app.SetXuiServerAction(0, eXuiServerAction_AutoSaveGame);
+				}
+				dwLastAutosave = dwNow;
+			}
+
 			Sleep(1); // yield so we don't peg the CPU
 		}
+
+		// Shutdown: trigger a final save before exit
+		if (MinecraftServer::getInstance() != NULL)
+		{
+			MCLog("[HEADLESS] Triggering final save before shutdown");
+			app.SetXuiServerAction(0, eXuiServerAction_SaveGame);
+			Sleep(2000); // give the server thread time to process the save
+		}
+
 		MCLog("[SHUTDOWN] Headless loop exited");
 		return 0;
 	}

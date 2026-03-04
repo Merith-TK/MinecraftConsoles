@@ -65,6 +65,98 @@ void CConsoleMinecraftApp::GetScreenshot(int iPad,PBYTE *pbData,DWORD *pdwSize)
 {
 }
 
+extern void MCLog(const char *fmt, ...);
+extern bool g_bHeadlessMode;
+
+void CConsoleMinecraftApp::HeadlessCreateGameStart()
+{
+	MCLog("[HEADLESS] HeadlessCreateGameStart begin");
+
+	app.setLevelGenerationOptions(NULL);
+
+	Minecraft *pMinecraft = Minecraft::GetInstance();
+	app.ReleaseSaveThumbnail();
+	ProfileManager.SetLockedProfile(0);
+	extern wchar_t g_Win64UsernameW[17];
+	pMinecraft->user->name = g_Win64UsernameW;
+	app.ApplyGameSettingsChanged(0);
+
+	MinecraftServer::resetFlags();
+	app.SetTutorialMode(false);
+	app.SetCorruptSaveDeleted(false);
+	app.ClearTerrainFeaturePosition();
+
+	wstring wWorldName = L"HeadlessWorld";
+	StorageManager.ResetSaveData();
+	StorageManager.SetSaveTitle(wWorldName.c_str());
+
+	NetworkGameInitData *param = new NetworkGameInitData();
+	param->seed = 0;
+	param->saveData = NULL;
+
+	// Check if world.mcs exists and load it
+	HANDLE hFile = CreateFileW(L"world.mcs", GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+	if (hFile != INVALID_HANDLE_VALUE)
+	{
+		MCLog("[HEADLESS] Found world.mcs, loading existing save");
+		DWORD dwFileSize = GetFileSize(hFile, NULL);
+		PBYTE pbData = new BYTE[dwFileSize];
+		DWORD bytesRead;
+		BOOL bSuccess = ReadFile(hFile, pbData, dwFileSize, &bytesRead, NULL);
+		CloseHandle(hFile);
+
+		if (bSuccess && bytesRead == dwFileSize)
+		{
+			param->saveData = new LoadSaveDataThreadParam(pbData, dwFileSize, L"world");
+			param->savePlatform = SAVE_FILE_PLATFORM_LOCAL;
+			MCLog("[HEADLESS] Loaded world.mcs (%u bytes)", dwFileSize);
+		}
+		else
+		{
+			MCLog("[HEADLESS] Failed to read world.mcs, creating new world");
+			delete[] pbData;
+		}
+	}
+	else
+	{
+		MCLog("[HEADLESS] No world.mcs found, creating new world");
+		param->findSeed = true; // find a good seed
+	}
+
+	// Normal difficulty (2), Survival, structures on, bonus chest on, no cheats
+	app.SetGameHostOption(eGameHostOption_Difficulty, 2); // Difficulty::NORMAL
+	app.SetGameHostOption(eGameHostOption_FriendsOfFriends, 0);
+	app.SetGameHostOption(eGameHostOption_Gamertags, 1);
+	app.SetGameHostOption(eGameHostOption_BedrockFog, 1);
+	app.SetGameHostOption(eGameHostOption_GameType, GameType::SURVIVAL->getId());
+	app.SetGameHostOption(eGameHostOption_LevelType, 0); // normal terrain
+	app.SetGameHostOption(eGameHostOption_Structures, 1);
+	app.SetGameHostOption(eGameHostOption_BonusChest, 1); // starting chest
+	app.SetGameHostOption(eGameHostOption_PvP, 1);
+	app.SetGameHostOption(eGameHostOption_TrustPlayers, 1);
+	app.SetGameHostOption(eGameHostOption_FireSpreads, 1);
+	app.SetGameHostOption(eGameHostOption_TNT, 1);
+	app.SetGameHostOption(eGameHostOption_HostCanFly, 0); // no cheats
+	app.SetGameHostOption(eGameHostOption_HostCanChangeHunger, 0);
+	app.SetGameHostOption(eGameHostOption_HostCanBeInvisible, 0);
+
+	param->settings = app.GetGameHostOption(eGameHostOption_All);
+
+	g_NetworkManager.FakeLocalPlayerJoined();
+
+	LoadingInputParams *loadingParams = new LoadingInputParams();
+	loadingParams->func = &CGameNetworkManager::RunNetworkGameThreadProc;
+	loadingParams->lpParam = (LPVOID)param;
+
+	app.SetAutosaveTimerTime();
+
+	MCLog("[HEADLESS] Launching RunNetworkGame thread");
+	C4JThread* thread = new C4JThread(loadingParams->func, loadingParams->lpParam, "RunNetworkGame");
+	thread->Run();
+
+	MCLog("[HEADLESS] HeadlessCreateGameStart done");
+}
+
 void CConsoleMinecraftApp::TemporaryCreateGameStart()
 {
 	////////////////////////////////////////////////////////////////////////////////////////////// From CScene_Main::OnInit
