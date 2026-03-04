@@ -198,10 +198,11 @@ Minecraft::Minecraft(Component *mouseComponent, Canvas *parent, MinecraftApplet 
 	this->minecraftApplet = NULL;
 
 	this->parent = parent;
+	MCLog("[Minecraft::ctor] width/widescreen check");
 	// 4J - Our actual physical frame buffer is always 1280x720 ie in a 16:9 ratio. If we want to do a 4:3 mode, we are telling the original minecraft code
 	// that the width is 3/4 what it actually is, to correctly present a 4:3 image. Have added width_phys and height_phys for any code we add that requires
 	// to know the real physical dimensions of the frame buffer.
-	if( RenderManager.IsWidescreen() )
+	if( g_bHeadlessMode || RenderManager.IsWidescreen() )
 	{
 		this->width = width;
 	}
@@ -218,7 +219,8 @@ Minecraft::Minecraft(Component *mouseComponent, Canvas *parent, MinecraftApplet 
 	appletMode = false;
 
 	Minecraft::m_instance = this;
-	TextureManager::createInstance();
+	MCLog("[Minecraft::ctor] TextureManager::createInstance");
+	if (!g_bHeadlessMode) TextureManager::createInstance();
 
 	for(int i=0;i<XUSER_MAX_COUNT;i++)
 	{
@@ -236,14 +238,17 @@ Minecraft::Minecraft(Component *mouseComponent, Canvas *parent, MinecraftApplet 
 	// 4J-PB - Removed it from here on Orbis due to it causing a crash with the network init.
 	// We should work out why...
 #ifndef __ORBIS__
-	this->soundEngine->init(NULL);
+	MCLog("[Minecraft::ctor] soundEngine->init");
+	if (!g_bHeadlessMode) this->soundEngine->init(NULL);
 #endif
 
+	MCLog("[Minecraft::ctor] levelTickEventQueue");
 #ifndef DISABLE_LEVELTICK_THREAD
 	levelTickEventQueue = new C4JThread::EventQueue(levelTickUpdateFunc, levelTickThreadInitFunc, "LevelTick_EventQueuePoll");
 	levelTickEventQueue->setProcessor(3);
 	levelTickEventQueue->setPriority(THREAD_PRIORITY_NORMAL);
 #endif // DISABLE_LEVELTICK_THREAD
+	MCLog("[Minecraft::ctor] done");
 }
 
 void Minecraft::clearConnectionFailed()

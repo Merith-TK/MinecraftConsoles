@@ -307,8 +307,7 @@ void CMinecraftApp::DebugPrintf(int user, const char *szFormat, ...)
 
 LPCWSTR CMinecraftApp::GetString(int iID)
 {
-	//return L"Değişiklikler ve Yenilikler";
-	//return L"ÕÕÕÕÖÖÖÖ";
+	if (app.m_stringTable == NULL) return L"";
 	return app.m_stringTable->getString(iID);
 }
 
