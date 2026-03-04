@@ -31,6 +31,11 @@ list(APPEND MINECRAFT_CLIENT_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.Client/Xbox/MinecraftWindows.rc"
 )
 
+# Create server sources by removing the client main
+set(MINECRAFT_SERVER_SOURCES ${MINECRAFT_CLIENT_SOURCES})
+list(REMOVE_ITEM MINECRAFT_SERVER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.Client/Minecraft.cpp")
+list(REMOVE_ITEM MINECRAFT_SERVER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.Client/Windows64/Windows64_Minecraft.cpp")
+
 add_library(MinecraftWorld STATIC ${MINECRAFT_WORLD_SOURCES})
 target_include_directories(MinecraftWorld PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.World"
@@ -86,6 +91,30 @@ target_link_libraries(MinecraftClient PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.Client/Windows64/4JLibs/libs/4J_Storage.lib"
     "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.Client/Windows64/4JLibs/libs/4J_Render_PC.lib"
   >
+)
+
+add_executable(MinecraftServer ${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.Server/main.cpp ${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.Server/stubs.cpp ${MINECRAFT_SERVER_SOURCES})
+target_include_directories(MinecraftServer PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.Client"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.Client/Windows64/Iggy/include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.Client/Xbox/Sentient/Include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Minecraft.World/x64headers"
+)
+target_compile_definitions(MinecraftServer PRIVATE
+  $<$<CONFIG:Debug>:_LARGE_WORLDS;_DEBUG_MENUS_ENABLED;_DEBUG;_CRT_NON_CONFORMING_SWPRINTFS;_CRT_SECURE_NO_WARNINGS;_WINDOWS64>
+  $<$<NOT:$<CONFIG:Debug>>:_LARGE_WORLDS;_DEBUG_MENUS_ENABLED;_CRT_NON_CONFORMING_SWPRINTFS;_CRT_SECURE_NO_WARNINGS;_WINDOWS64>
+)
+if(MSVC)
+  configure_msvc_target(MinecraftServer)
+  target_link_options(MinecraftServer PRIVATE
+    $<$<CONFIG:Release>:/LTCG /INCREMENTAL:NO>
+  )
+endif()
+
+target_link_libraries(MinecraftServer PRIVATE
+  MinecraftWorld
+  wsock32
+  legacy_stdio_definitions
 )
 
 add_custom_command(TARGET MinecraftClient POST_BUILD

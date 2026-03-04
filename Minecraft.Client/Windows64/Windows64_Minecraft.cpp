@@ -48,6 +48,7 @@
 HINSTANCE hMyInst;
 LRESULT CALLBACK DlgProc(HWND hWndDlg, UINT Msg, WPARAM wParam, LPARAM lParam);
 char chGlobalText[256];
+bool g_bHeadlessMode = false;
 uint16_t ui16GlobalText[256];
 
 #define THEME_NAME		"584111F70AAAAAAA"
@@ -745,6 +746,10 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 
 	if(lpCmdLine)
 	{
+		if(strstr(lpCmdLine, "headless"))
+		{
+			g_bHeadlessMode = true;
+		}
 		if(lpCmdLine[0] == '1')
 		{
 			g_iScreenWidth = 1280;
