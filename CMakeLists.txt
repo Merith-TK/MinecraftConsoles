@@ -58,7 +58,11 @@ target_compile_definitions(MinecraftClient PRIVATE
 )
 if(MSVC)
   configure_msvc_target(MinecraftClient)
+  # Use CONSOLE subsystem so the shell waits for the process (important for
+  # Docker and piped output in server mode).  WinMainCRTStartup keeps the
+  # WinMain entry point.  Client mode calls FreeConsole() to detach.
   target_link_options(MinecraftClient PRIVATE
+    /SUBSYSTEM:CONSOLE /ENTRY:WinMainCRTStartup
     $<$<CONFIG:Release>:/LTCG /INCREMENTAL:NO>
   )
 endif()

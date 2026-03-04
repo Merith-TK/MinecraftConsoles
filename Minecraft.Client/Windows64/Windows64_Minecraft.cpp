@@ -228,14 +228,14 @@ static BOOL WINAPI HeadlessServerCtrlHandler(DWORD ctrlType)
 
 static void SetupHeadlessServerConsole()
 {
-	if (AllocConsole())
-	{
-		FILE* stream = NULL;
-		freopen_s(&stream, "CONIN$", "r", stdin);
-		freopen_s(&stream, "CONOUT$", "w", stdout);
-		freopen_s(&stream, "CONOUT$", "w", stderr);
-		SetConsoleTitleA("Minecraft Server");
-	}
+	// The exe is now linked as /SUBSYSTEM:CONSOLE, so it inherits the parent's
+	// console automatically.  We just need to re-open the CRT streams so that
+	// printf/scanf go through the console and set up our Ctrl handler.
+	FILE* stream = NULL;
+	freopen_s(&stream, "CONIN$", "r", stdin);
+	freopen_s(&stream, "CONOUT$", "w", stdout);
+	freopen_s(&stream, "CONOUT$", "w", stderr);
+	SetConsoleTitleA("Minecraft Server");
 
 	SetConsoleCtrlHandler(HeadlessServerCtrlHandler, TRUE);
 }
@@ -1141,6 +1141,15 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 
 	// Load stuff from launch options, including username
 	Win64LaunchOptions launchOptions = ParseLaunchOptions();
+
+	// The exe is linked as /SUBSYSTEM:CONSOLE so that the shell waits for it
+	// (required for Docker / piped output in server mode).  In client mode we
+	// don't need the console, so detach from it immediately.
+	if (!launchOptions.serverMode)
+	{
+		FreeConsole();
+	}
+
 	ApplyScreenMode(launchOptions.screenMode);
 
 	// If no username, let's fall back
