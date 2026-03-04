@@ -4097,8 +4097,29 @@ bool Minecraft::isClientSide()
 
 MultiPlayerLevel *Minecraft::loadLevel(LevelStorageSource *storageSource, const wstring& name, __int64 levelSeed, LevelType *pLevelType, NetworkGameInitData *initData)
 {
-	// Simple load for client
-	shared_ptr<McRegionLevelStorage> storage(new McRegionLevelStorage(new ConsoleSaveFileOriginal(L""), File(L"."), name, true));
+	// Load world data from world.mcs (single-file console save format)
+	LPVOID pvSaveData = NULL;
+	DWORD fileSize = 0;
+	HANDLE hFile = CreateFileW(L"world.mcs", GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hFile != INVALID_HANDLE_VALUE)
+	{
+		fileSize = GetFileSize(hFile, NULL);
+		pvSaveData = malloc(fileSize);
+		DWORD bytesRead = 0;
+		ReadFile(hFile, pvSaveData, fileSize, &bytesRead, NULL);
+		CloseHandle(hFile);
+		if (bytesRead != fileSize)
+		{
+			free(pvSaveData);
+			pvSaveData = NULL;
+			fileSize = 0;
+		}
+	}
+
+	ConsoleSaveFileOriginal *saveFile = new ConsoleSaveFileOriginal(L"world.mcs", pvSaveData, fileSize);
+	if (pvSaveData) { free(pvSaveData); pvSaveData = NULL; }
+
+	shared_ptr<McRegionLevelStorage> storage(new McRegionLevelStorage(saveFile, File(L"."), name, false));
 	LevelSettings *levelSettings = new LevelSettings(levelSeed, GameType::SURVIVAL, true, false, true, pLevelType, LEVEL_LEGACY_WIDTH, HELL_LEVEL_LEGACY_SCALE);
 	MultiPlayerLevel *level = new MultiPlayerLevel(this, storage, name, 0, levelSettings);
 	return level;

@@ -49,6 +49,21 @@ HINSTANCE hMyInst;
 LRESULT CALLBACK DlgProc(HWND hWndDlg, UINT Msg, WPARAM wParam, LPARAM lParam);
 char chGlobalText[256];
 bool g_bHeadlessMode = false;
+
+// ---- Simple logger -------------------------------------------------------
+static FILE *g_logFile = nullptr;
+void MCLog(const char *fmt, ...)
+{
+	if (!g_logFile) g_logFile = fopen("minecraft.log", "a");
+	char buf[1024];
+	va_list args; va_start(args, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
+	if (g_logFile) { fprintf(g_logFile, "%s\n", buf); fflush(g_logFile); }
+	OutputDebugStringA(buf); OutputDebugStringA("\n");
+	printf("%s\n", buf);
+}
+// --------------------------------------------------------------------------
 wstring g_connectToIp = L"";
 uint16_t ui16GlobalText[256];
 
@@ -557,6 +572,7 @@ LRESULT CALLBACK DlgProc(HWND hWndDlg, UINT Msg, WPARAM wParam, LPARAM lParam)
 //--------------------------------------------------------------------------------------
 // Create Direct3D device and swap chain
 //--------------------------------------------------------------------------------------
+extern void MCLog(const char *fmt, ...);
 HRESULT InitDevice()
 {
 	HRESULT hr = S_OK;
@@ -565,10 +581,9 @@ HRESULT InitDevice()
 	GetClientRect( g_hWnd, &rc );
 	UINT width = rc.right - rc.left;
 	UINT height = rc.bottom - rc.top;
-//app.DebugPrintf("width: %d, height: %d\n", width, height);
 	width = g_iScreenWidth;
 	height = g_iScreenHeight;
-app.DebugPrintf("width: %d, height: %d\n", width, height);
+	MCLog("[InitDevice] start w=%d h=%d hWnd=%p", width, height, g_hWnd);
 
 	UINT createDeviceFlags = 0;
 #ifdef _DEBUG
@@ -605,27 +620,38 @@ app.DebugPrintf("width: %d, height: %d\n", width, height);
 	sd.SampleDesc.Quality = 0;
 	sd.Windowed = TRUE;
 
+	if (g_bHeadlessMode)
+	{
+		// Headless: no rendering at all — skip D3D entirely
+		MCLog("[InitDevice] headless mode: skipping D3D entirely");
+		return S_OK;
+	}
+
+	MCLog("[InitDevice] calling D3D11CreateDeviceAndSwapChain");
 	for( UINT driverTypeIndex = 0; driverTypeIndex < numDriverTypes; driverTypeIndex++ )
 	{
 		g_driverType = driverTypes[driverTypeIndex];
 		hr = D3D11CreateDeviceAndSwapChain( NULL, g_driverType, NULL, createDeviceFlags, featureLevels, numFeatureLevels,
 			D3D11_SDK_VERSION, &sd, &g_pSwapChain, &g_pd3dDevice, &g_featureLevel, &g_pImmediateContext );
-		if( HRESULT_SUCCEEDED( hr ) )
+		MCLog("[InitDevice] D3D11CreateDeviceAndSwapChain driverType=%d hr=0x%08X", driverTypeIndex, hr);
+		if( SUCCEEDED( hr ) )
 			break;
 	}
 	if( FAILED( hr ) )
+	{
+		MCLog("[InitDevice] D3D11CreateDeviceAndSwapChain all failed hr=0x%08X", hr);
 		return hr;
+	}
 
 	// Create a render target view
+	MCLog("[InitDevice] GetBuffer");
 	ID3D11Texture2D* pBackBuffer = NULL;
 	hr = g_pSwapChain->GetBuffer( 0, __uuidof( ID3D11Texture2D ), ( LPVOID* )&pBackBuffer );
-	if( FAILED( hr ) )
-		return hr;
+	if( FAILED( hr ) ) { MCLog("[InitDevice] GetBuffer FAILED hr=0x%08X", hr); return hr; }
 
 	// Create a depth stencil buffer
 	D3D11_TEXTURE2D_DESC descDepth;
 	ZeroMemory(&descDepth, sizeof(descDepth));
-
 	descDepth.Width = width;
 	descDepth.Height = height;
 	descDepth.MipLevels = 1;
@@ -637,7 +663,9 @@ app.DebugPrintf("width: %d, height: %d\n", width, height);
 	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	descDepth.CPUAccessFlags = 0;
 	descDepth.MiscFlags = 0;
+	MCLog("[InitDevice] CreateTexture2D depth");
 	hr = g_pd3dDevice->CreateTexture2D(&descDepth, NULL, &g_pDepthStencilBuffer);
+	if( FAILED( hr ) ) { MCLog("[InitDevice] CreateTexture2D FAILED hr=0x%08X", hr); pBackBuffer->Release(); return hr; }
 
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSView;
 	ZeroMemory(&descDSView, sizeof(descDSView));
@@ -645,12 +673,14 @@ app.DebugPrintf("width: %d, height: %d\n", width, height);
 	descDSView.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 	descDSView.Texture2D.MipSlice = 0;
 
+	MCLog("[InitDevice] CreateDepthStencilView");
 	hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencilBuffer, &descDSView, &g_pDepthStencilView);
+	if( FAILED( hr ) ) { MCLog("[InitDevice] CreateDepthStencilView FAILED hr=0x%08X", hr); pBackBuffer->Release(); return hr; }
 
+	MCLog("[InitDevice] CreateRenderTargetView");
 	hr = g_pd3dDevice->CreateRenderTargetView( pBackBuffer, NULL, &g_pRenderTargetView );
 	pBackBuffer->Release();
-	if( FAILED( hr ) )
-		return hr;
+	if( FAILED( hr ) ) { MCLog("[InitDevice] CreateRenderTargetView FAILED hr=0x%08X", hr); return hr; }
 
 	g_pImmediateContext->OMSetRenderTargets( 1, &g_pRenderTargetView, g_pDepthStencilView );
 
@@ -664,7 +694,9 @@ app.DebugPrintf("width: %d, height: %d\n", width, height);
 	vp.TopLeftY = 0;
 	g_pImmediateContext->RSSetViewports( 1, &vp );
 
+	MCLog("[InitDevice] RenderManager.Initialise");
 	RenderManager.Initialise(g_pd3dDevice, g_pSwapChain);
+	MCLog("[InitDevice] done -> S_OK");
 
 	return S_OK;
 }
@@ -731,6 +763,10 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
+
+	// Reset log file on each launch
+	{ FILE *f = fopen("minecraft.log", "w"); if (f) fclose(f); }
+	MCLog("[INIT] WinMain start. cmdline: %s", lpCmdLine ? lpCmdLine : "");
 
 	// 4J-Win64: set CWD to exe dir so asset paths resolve correctly
 	{
@@ -812,6 +848,8 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 
 	MultiByteToWideChar(CP_ACP, 0, g_Win64Username, -1, g_Win64UsernameW, 17);
 
+	MCLog("[INIT] g_bHeadlessMode=%d screen=%dx%d user=%s", g_bHeadlessMode, g_iScreenWidth, g_iScreenHeight, g_Win64Username);
+
 	if (g_bHeadlessMode)
 	{
 		g_connectToIp = L"127.0.0.1";
@@ -826,20 +864,33 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	}
 
 	// Initialize global strings
+	MCLog("[INIT] MyRegisterClass");
 	MyRegisterClass(hInstance);
 
 	// Perform application initialization:
+	MCLog("[INIT] InitInstance");
 	if (!InitInstance (hInstance, nCmdShow))
 	{
+		MCLog("[INIT] InitInstance FAILED");
 		return FALSE;
 	}
 
 	hMyInst=hInstance;
 
-	if( FAILED( InitDevice() ) )
+	if (!g_bHeadlessMode)
 	{
-		CleanupDevice();
-		return 0;
+		MCLog("[INIT] InitDevice");
+		if( FAILED( InitDevice() ) )
+		{
+			MCLog("[INIT] InitDevice FAILED");
+			CleanupDevice();
+			return 0;
+		}
+		MCLog("[INIT] InitDevice OK");
+	}
+	else
+	{
+		MCLog("[INIT] InitDevice skipped (headless)");
 	}
 
 #if 0
@@ -894,12 +945,22 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	}
 
 #endif
-	app.loadMediaArchive();
+	MCLog("[INIT] loadMediaArchive");
+	if (!g_bHeadlessMode)
+	{
+		app.loadMediaArchive();
 
-	RenderManager.Initialise(g_pd3dDevice, g_pSwapChain);
+		// RenderManager already initialised inside InitDevice()
 
-	app.loadStringTable();
-	ui.init(g_pd3dDevice,g_pImmediateContext,g_pRenderTargetView,g_pDepthStencilView,g_iScreenWidth,g_iScreenHeight);
+		MCLog("[INIT] loadStringTable");
+		app.loadStringTable();
+		MCLog("[INIT] ui.init");
+		ui.init(g_pd3dDevice,g_pImmediateContext,g_pRenderTargetView,g_pDepthStencilView,g_iScreenWidth,g_iScreenHeight);
+	}
+	else
+	{
+		MCLog("[INIT] skipping loadMediaArchive/loadStringTable/ui.init (headless)");
+	}
 
 	////////////////
 	// Initialise //
@@ -1035,7 +1096,9 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	Level::enableLightingCache();
 	Tile::CreateNewThreadStorage();
 
+	MCLog("[INIT] Minecraft::main");
 	Minecraft::main();
+	MCLog("[INIT] Minecraft::main done");
 	Minecraft *pMinecraft=Minecraft::GetInstance();
 
 	app.InitGameSettings();
@@ -1116,7 +1179,33 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		hr = XuiTimersRun();
 	}
 #endif
+	MCLog("[INIT] Entering main game loop");
 	MSG msg = {0};
+
+	if (g_bHeadlessMode)
+	{
+		// Headless server loop - no rendering, no input, just keep alive + tick network
+		MCLog("[INIT] Headless server loop running");
+		while (!app.m_bShutdown)
+		{
+			while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+			{
+				if (msg.message == WM_QUIT) { app.m_bShutdown = true; break; }
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+			if (app.m_bShutdown) break;
+
+			app.UpdateTime();
+			StorageManager.Tick();
+			g_NetworkManager.DoWork();
+
+			Sleep(1); // yield so we don't peg the CPU
+		}
+		MCLog("[SHUTDOWN] Headless loop exited");
+		return 0;
+	}
+
 	while( WM_QUIT != msg.message && !app.m_bShutdown)
 	{
 		if( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE ) )
@@ -1458,9 +1547,10 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		KMInput.EndFrame();
 	}
 
+	MCLog("[SHUTDOWN] Main loop exited (m_bShutdown=%d msg=%d)", (int)app.m_bShutdown, (int)msg.message);
 	// Free resources, unregister custom classes, and exit.
 	//	app.Uninit();
-	g_pd3dDevice->Release();
+	if (g_pd3dDevice) g_pd3dDevice->Release();
 }
 
 #ifdef MEMORY_TRACKING
