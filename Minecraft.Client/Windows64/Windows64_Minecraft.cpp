@@ -1101,7 +1101,8 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	MCLog("[INIT] Minecraft::main done");
 	Minecraft *pMinecraft=Minecraft::GetInstance();
 
-	app.InitGameSettings();
+	MCLog("[INIT] app.InitGameSettings");
+	if (!g_bHeadlessMode) app.InitGameSettings();
 
 #if 0
 	//bool bDisplayPauseMenu=false;
@@ -1132,9 +1133,11 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	// Update the base scene quick selects now that the minecraft class exists
 	//CXuiSceneBase::UpdateScreenSettings(0);
 #endif
-	app.InitialiseTips();
-#if 0
 
+	MCLog("[INIT] app.InitialiseTips");
+	if (!g_bHeadlessMode) app.InitialiseTips();
+
+#if 0
 	DWORD initData=0;
 
 #ifndef _FINAL_BUILD
@@ -1150,6 +1153,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	app.NavigateToScene(XUSER_INDEX_ANY,eUIScene_Intro,&initData);
 #endif
 
+	MCLog("[INIT] options->set MUSIC/SOUND");
 	// Set the default sound levels
 	pMinecraft->options->set(Options::Option::MUSIC,1.0f);
 	pMinecraft->options->set(Options::Option::SOUND,1.0f);
